@@ -16,10 +16,14 @@
 *
 *  Multithreading possibility
 *  Exception class handling
+* 
+*  Process total courses in private method
+* 
 */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <map>
 #include <utility>
@@ -44,8 +48,8 @@ struct course_info {
 
 class client {
 public:
-	client(const std::map<std::string, course_info>& arg) {
-		_data = arg;
+	client(const std::map<std::string, course_info>& processed_data) {
+		_data = processed_data;
 	}
 	void show_menu();
 	void interact();
@@ -55,7 +59,11 @@ public:
 	bool complete() const { return _state; };
 private:
 	std::map<std::string, course_info> _data;
+	std::map<std::string, int> _subject_codes;
+	int _total_courses{ 0 };
 	bool _state{ false }; //completion state
+	void process_subjects();
+	const uint16_t W{ 10U }; //for outputting
 };
 
 void client::show_menu() {
@@ -89,20 +97,46 @@ void client::interact() {
 }
 
 void client::display_all() {
-	using namespace std::literals::chrono_literals;
 	std::cout << "\n\n" << std::string(50, '=') << '\n';
 	for (const auto& [k, v] : _data) { 
 		std::cout << k << '\n' << std::string(50, '-') << '\n' << v << '\n';
-		std::this_thread::sleep_for(0.5s);
 	}
 }
 
-void client::display_each() /*Figure out how to get number of each section*/ {
-	std::map<std::string, std::set<std::string> > terms;
+void client::display_each() {
+	/*Pass function into private client method
+	*Output after checking if database has been processed*/
+	
+	process_subjects();
+
+	using namespace std::literals::chrono_literals;
+
+	std::cout << std::left << std::setw(W) << "\nSUBJ-CODE" << std::right << std::setw(W + 13U) << "COUNT(s)\n";
+	std::cout  << std::string(32, '=') << '\n';
+
+	for (const auto& [k, v] : _subject_codes) {
+		std::cout << std::left << std::setw(W) << k  << " " << std::right << std::setw(W) << v << " section(s)\n";
+		std::this_thread::sleep_for(0.05s);
+	}
+	std::cout << std::string(32, '-') << "\nTotal number of subjects: " << _subject_codes.size() << "\n\n";
 }
 
 void client::display_crosslist() /*Assignm. 14*/ {
 
+}
+
+void client::process_subjects() /*Only process the subject codes once*/ {
+	/* Check to see if the subject codes have already been processed
+	* If processed, return
+	* Else, process only process once.*/
+	if (_subject_codes.empty()) { 
+		for (const auto& [k, v] : _data) {
+			_subject_codes[v._subj_code]++;
+		}
+	}
+	else {
+		return;
+	}
 }
 
 std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
@@ -112,7 +146,7 @@ std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
 	return os;
 }
 
-void parser(std::ifstream& in_file, std::map<std::string, course_info>& data) {
+void parser(std::ifstream& in_file, std::map<std::string, course_info>& data) { //Refine this function later on
 
 	char* token;
 	char buff[1000];
