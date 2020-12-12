@@ -3,6 +3,7 @@
 
 /* [ADD]:
 * =====================================
+*  Display Fall,Spring, or Summer courses only
 *  # Of courses per subject code
 *  # Of courses per particular professor
 *  # Total "bad" courses (Assignment 14)
@@ -13,13 +14,16 @@
 *  # Output amount of different term/sections an instructor has taught
 *  # Output amount of different courses an instructor teaches
 *
-*  Multithreading possibility?
+*  Multithreading possibility
+*  Exception class handling
 */
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <utility>
+#include <set>
 #include <algorithm>
 #include <thread>
 #include <string>
@@ -35,26 +39,71 @@ struct course_info {
 	std::string _instructor;
 	std::string _time_location;
 	std::string _subj_code;
+
 };
 
 class client {
 public:
 	client(const std::map<std::string, course_info>& arg) {
-		data = arg;
+		_data = arg;
 	}
+	void show_menu();
+	void interact();
 	void display_all();
+	void display_each();
+	void display_crosslist();
+	bool complete() const { return _state; };
 private:
-	std::map<std::string, course_info> data;
+	std::map<std::string, course_info> _data;
+	bool _state{ false }; //completion state
 };
+
+void client::show_menu() {
+	std::cout << "1. Display all courses and information.\n"
+		<< "2. Display each courses and number of sections.\n"
+		<< "3. Display 'cross-listed' courses.\n[Q] to quit\n\tInput: "; //ADD MORE OPTIONS later
+	interact();
+}
+
+void client::interact() {
+	std::string input;
+	std::getline(std::cin, input);
+
+	if (toupper(input[0]) == 'Q') { /*Client is finished*/
+		_state = true;
+		return;
+	}
+
+	switch (std::atoi(input.c_str())) {
+	case 1: /*Display all*/
+		display_all();
+		break;
+	case 2:
+		display_each();
+		break;
+	case 3:
+		break;
+	default:
+		std::cout << "Error\n";
+	}
+}
 
 void client::display_all() {
 	using namespace std::literals::chrono_literals;
-	for (const auto& [k, v] : data) { //output all
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	for (const auto& [k, v] : _data) { 
 		std::cout << k << '\n' << std::string(50, '-') << '\n' << v << '\n';
 		std::this_thread::sleep_for(0.5s);
 	}
 }
 
+void client::display_each() /*Figure out how to get number of each section*/ {
+	std::map<std::string, std::set<std::string> > terms;
+}
+
+void client::display_crosslist() /*Assignm. 14*/ {
+
+}
 
 std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
 	os << "Course: " << rhs._course << '\t' << rhs._subj_code << '\n'
@@ -80,7 +129,6 @@ void parser(std::ifstream& in_file, std::map<std::string, course_info>& data) {
 		const std::string course{ (token = strtok(0,tab)) ? token : "" };
 		const std::string instructor{ (token = strtok(0, tab)) ? token : "" };
 		const std::string when_where{ (token = strtok(0, tab)) ? token : "" };
-
 		if (course.find('-') == std::string::npos) continue; //not found. no dash in course name
 		const std::string subj_code{ course.begin(), course.begin() + course.find('-') };
 
@@ -96,17 +144,17 @@ int main() {
 		throw std::runtime_error("Cannot open.");
 	}
 
-	using namespace std::literals::chrono_literals;
 	std::map<std::string, course_info> course_data;
 	//[k] = term/section
 	//[v] = course information
 
-	std::cout << "This is a course management system, press [ENTER] to continue:\n";
+	std::cout << "This is a course management system, press [ENTER] to continue:\n"; //introduction while parsing data
 	std::thread worker(parser,std::ref(in_file),std::ref(course_data)); 
 	std::cin.get();
 	worker.join();
 
 	client local_client(course_data); //pass map by const ref
-
-	
+	while (!local_client.complete()){
+		local_client.show_menu();
+	}
 }
