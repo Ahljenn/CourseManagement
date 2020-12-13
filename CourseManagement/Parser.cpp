@@ -35,7 +35,6 @@
 struct course_info {
 
 	friend std::ostream& operator<<(std::ostream&, course_info const&);
-
 	std::string _term;
 	std::string _section;
 	std::string _course;
@@ -43,6 +42,13 @@ struct course_info {
 	std::string _time_location;
 	std::string _subj_code;
 };
+
+std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
+	os << "Course: " << rhs._course << '\t' << rhs._subj_code << '\n'
+		<< "Instructor: " << rhs._instructor << '\n'
+		<< "When/Where: " << rhs._time_location << "\n\n";
+	return os;
+}
 
 class client {
 public:
@@ -65,6 +71,7 @@ private:
 	int _total_courses{ 0 };
 	bool _state{ false }; 
 	const uint16_t W{ 10U }; 
+	const std::size_t S{ 50U };
 
 	std::unordered_map<std::string, course_info> _data;
 	std::unordered_map<std::string, std::set<std::string>> _instructors;
@@ -72,11 +79,13 @@ private:
 };
 
 void client::show_menu() {
-	std::cout << "1. Display all courses and information.\n"
+	std::cout << '\n' << std::string(S, '-') <<"\nClient menu:\n" << std::string(S, '=');
+	std::cout << "\n1. Display all courses and information.\n"
 		<< "2. Display each courses and number of sections.\n"
 		<< "3. Display totals.\n"
 		<< "4. Find an instructor\n"
-		<< "5. Display all instructors.\n"
+		<< "5. Display all instructors.";
+	std::cout << '\n' << std::string(S, '=')
 		<< "\n[Q] to quit\n\tInput: ";
 	interact();
 }
@@ -101,12 +110,14 @@ void client::interact() {
 		display_totals();
 		break;
 	case 4:
+		find_instructor();
 		break;
 	case 5:
 		display_instructors();
 		break;
 	default:
-		std::cout << "Error\n";
+		std::cout << "Error, try again!\n";
+		break;
 	}
 }
 
@@ -131,7 +142,7 @@ void client::display_each() {
 }
 
 void client::display_totals() {
-	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << '\n' << std::string(50, '=') << '\n';
 	std::cout << "Total valid courses: " << _data.size()
 		<< "\nTotal different subjects: " << _subject_codes.size() << '\n';
 }
@@ -148,6 +159,32 @@ void client::display_instructors() {
 			++counter;
 		}
 		std::cout << "Total classes taught: " << counter << '\n';
+	}
+}
+
+void client::find_instructor() {
+	std::string input;
+
+	while (input.length() == 0) {
+		std::cout << "Please search name for an instructor: ";
+		std::getline(std::cin, input);
+	}
+
+	//Format name
+	for (std::size_t i{ 0 }; i < input.length(); ++i) {
+		input[i] = tolower(input[i]);
+	}
+	input[0] = toupper(input[0]);
+
+	if (_instructors.find(input) != _instructors.cend()) {
+		std::cout << "\nCourses found for " << input << "(s):\n" << std::string(30, '-') << '\n';
+		for (const auto i : _instructors[input]) {
+			std::cout << i << '\n';
+		}
+		std::cout << "\nImportant note: results may be outputting additional results because some instructors with the same name.\n";
+	}
+	else {
+		std::cout << "\nCourses could not be found for " << input << ".\n";
 	}
 }
 
@@ -194,13 +231,6 @@ void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>
 	}
 }
 
-std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
-	os << "Course: " << rhs._course << '\t' << rhs._subj_code << '\n'
-		<< "Instructor: " << rhs._instructor << '\n'
-		<< "When/Where: " << rhs._time_location << "\n\n";
-	return os;
-}
-
 int main() {
 
 	std::ifstream in_file("dvc-schedule.csv");
@@ -212,8 +242,7 @@ int main() {
 	//[k] = term/section
 	//[v] = course information
 
-	std::cout << "This is a course management system, press [ENTER] to continue:\n"; //introduction while parsing data
-
+	std::cout << "This is a course management system...\nPress [ENTER] to continue:"; //introduction while parsing data
 	std::thread parse(parser,std::ref(in_file),std::ref(course_data)); 
 	std::cin.get();
 	parse.join();
