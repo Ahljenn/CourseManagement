@@ -17,15 +17,14 @@
 *  Multithreading possibility
 *  Exception class handling
 * 
-*  Process total courses in private method
-* 
+*  Be able to search professor by name, similar to final project using .find()
 */
-
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <map>
+#include <unordered_map>
 #include <utility>
 #include <set>
 #include <algorithm>
@@ -43,33 +42,42 @@ struct course_info {
 	std::string _instructor;
 	std::string _time_location;
 	std::string _subj_code;
-
 };
 
 class client {
 public:
-	client(const std::map<std::string, course_info>& processed_data) {
-		_data = processed_data;
+	client(std::unordered_map<std::string, course_info>& data) {
+		_data = std::move(data); //move resources to this client
+		process_subjects();
 	}
 	void show_menu();
+	bool complete() const { return _state; }; //completion state
+
+private:
 	void interact();
 	void display_all();
 	void display_each();
-	void display_crosslist();
-	bool complete() const { return _state; };
-private:
-	std::map<std::string, course_info> _data;
-	std::map<std::string, int> _subject_codes;
-	int _total_courses{ 0 };
-	bool _state{ false }; //completion state
+	void display_totals();
+	void display_instructors();
+	void find_instructor();
 	void process_subjects();
-	const uint16_t W{ 10U }; //for outputting
+
+	int _total_courses{ 0 };
+	bool _state{ false }; 
+	const uint16_t W{ 10U }; 
+
+	std::unordered_map<std::string, course_info> _data;
+	std::unordered_map<std::string, std::set<std::string>> _instructors;
+	std::map<std::string, int> _subject_codes; //keep this sorted
 };
 
 void client::show_menu() {
 	std::cout << "1. Display all courses and information.\n"
 		<< "2. Display each courses and number of sections.\n"
-		<< "3. Display 'cross-listed' courses.\n[Q] to quit\n\tInput: "; //ADD MORE OPTIONS later
+		<< "3. Display totals.\n"
+		<< "4. Find an instructor\n"
+		<< "5. Display all instructors.\n"
+		<< "\n[Q] to quit\n\tInput: ";
 	interact();
 }
 
@@ -77,19 +85,25 @@ void client::interact() {
 	std::string input;
 	std::getline(std::cin, input);
 
-	if (toupper(input[0]) == 'Q') { /*Client is finished*/
+	if (toupper(input[0]) == 'Q') {
 		_state = true;
 		return;
 	}
 
 	switch (std::atoi(input.c_str())) {
-	case 1: /*Display all*/
+	case 1: 
 		display_all();
 		break;
 	case 2:
 		display_each();
 		break;
 	case 3:
+		display_totals();
+		break;
+	case 4:
+		break;
+	case 5:
+		display_instructors();
 		break;
 	default:
 		std::cout << "Error\n";
@@ -104,14 +118,9 @@ void client::display_all() {
 }
 
 void client::display_each() {
-	/*Pass function into private client method
-	*Output after checking if database has been processed*/
-	
-	process_subjects();
-
 	using namespace std::literals::chrono_literals;
 
-	std::cout << std::left << std::setw(W) << "\nSUBJ-CODE" << std::right << std::setw(W + 13U) << "COUNT(s)\n";
+	std::cout << std::left << std::setw(W) << "\nSUBJ-CODE & COUNT(s)\n";
 	std::cout  << std::string(32, '=') << '\n';
 
 	for (const auto& [k, v] : _subject_codes) {
@@ -121,33 +130,47 @@ void client::display_each() {
 	std::cout << std::string(32, '-') << "\nTotal number of subjects: " << _subject_codes.size() << "\n\n";
 }
 
-void client::display_crosslist() /*Assignm. 14*/ {
-
+void client::display_totals() {
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << "Total valid courses: " << _data.size()
+		<< "\nTotal different subjects: " << _subject_codes.size() << '\n';
 }
 
-void client::process_subjects() /*Only process the subject codes once*/ {
-	/* Check to see if the subject codes have already been processed
-	* If processed, return
-	* Else, process only process once.*/
-	if (_subject_codes.empty()) { 
-		for (const auto& [k, v] : _data) {
-			_subject_codes[v._subj_code]++;
+void client::display_instructors() {
+
+	std::cout << "\n\n" << std::string(50, '=');
+
+	for (const auto& [k,v] : _instructors) {
+		int counter{ 0 };
+		std::cout << "\nProfessor: " << k << '\n' << std::string(30, '-') << '\n';
+		for (const auto& course_itr : v) {
+			std::cout << course_itr << '\n';
+			++counter;
 		}
-	}
-	else {
-		return;
+		std::cout << "Total classes taught: " << counter << '\n';
 	}
 }
 
-std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
-	os << "Course: " << rhs._course << '\t' << rhs._subj_code << '\n'
-		<< "Instructor: " << rhs._instructor << '\n'
-		<< "When/Where: " << rhs._time_location << "\n\n";
-	return os;
+void client::process_subjects(){
+#if 0
+	std::thread worker([this](const std::unordered_map<std::string, course_info>& dat) {
+		for (const auto& [k, v] : dat) {
+			_subject_codes[v._subj_code]++;
+		}}, _data);
+	std::thread worker2([this](const std::unordered_map<std::string, course_info>& dat) {
+		for (const auto& [k, v] : dat) {
+			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
+		}}, _data);
+	worker.join();
+	worker2.join();
+#endif
+	for (const auto& [k, v] : _data) {
+		_subject_codes[v._subj_code]++;
+		_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
+	}
 }
 
-void parser(std::ifstream& in_file, std::map<std::string, course_info>& data) { //Refine this function later on
-
+void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data) { //Refine this function later on
 	char* token;
 	char buff[1000];
 	const char* const tab{ "," };
@@ -171,6 +194,13 @@ void parser(std::ifstream& in_file, std::map<std::string, course_info>& data) { 
 	}
 }
 
+std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
+	os << "Course: " << rhs._course << '\t' << rhs._subj_code << '\n'
+		<< "Instructor: " << rhs._instructor << '\n'
+		<< "When/Where: " << rhs._time_location << "\n\n";
+	return os;
+}
+
 int main() {
 
 	std::ifstream in_file("dvc-schedule.csv");
@@ -178,17 +208,18 @@ int main() {
 		throw std::runtime_error("Cannot open.");
 	}
 
-	std::map<std::string, course_info> course_data;
+	std::unordered_map<std::string, course_info> course_data;
 	//[k] = term/section
 	//[v] = course information
 
 	std::cout << "This is a course management system, press [ENTER] to continue:\n"; //introduction while parsing data
-	std::thread worker(parser,std::ref(in_file),std::ref(course_data)); 
-	std::cin.get();
-	worker.join();
 
-	client local_client(course_data); //pass map by const ref
-	while (!local_client.complete()){
+	std::thread parse(parser,std::ref(in_file),std::ref(course_data)); 
+	std::cin.get();
+	parse.join();
+
+	client local_client(course_data); //pass unordered_map by const ref
+	while (!local_client.complete()) {
 		local_client.show_menu();
 	}
 }
