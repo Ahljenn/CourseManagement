@@ -32,6 +32,8 @@
 #include <string>
 #include <cstring>
 
+std::string FILE_NAME{ "dvc-schedule.csv" };
+
 struct course_info {
 
 	friend std::ostream& operator<<(std::ostream&, course_info const&);
@@ -52,8 +54,10 @@ std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
 
 class client {
 public:
-	client(std::unordered_map<std::string, course_info>& data) {
+	client(std::unordered_map<std::string, course_info>& data, 
+		std::unordered_map<std::string, std::set<std::string>>& invalid) {
 		_data = std::move(data); //move resources to this client
+		_course_check = std::move(invalid);
 		process_subjects();
 	}
 	void show_menu();
@@ -68,6 +72,7 @@ private:
 	void find_instructor();
 	void process_subjects();
 
+	int _invalids{ 0 };
 	int _total_courses{ 0 };
 	bool _state{ false }; 
 	const uint16_t W{ 10U }; 
@@ -75,6 +80,7 @@ private:
 
 	std::unordered_map<std::string, course_info> _data;
 	std::unordered_map<std::string, std::set<std::string>> _instructors;
+	std::unordered_map<std::string, std::set<std::string>> _course_check;
 	std::map<std::string, int> _subject_codes; //keep this sorted
 };
 
@@ -181,7 +187,7 @@ void client::find_instructor() {
 		for (const auto i : _instructors[input]) {
 			std::cout << i << '\n';
 		}
-		std::cout << "\nImportant note: results may be outputting additional results because some instructors with the same name.\n";
+		std::cout << "\nImportant note: results may be outputting additional results due to some instructors with the same name.\n";
 	}
 	else {
 		std::cout << "\nCourses could not be found for " << input << ".\n";
@@ -189,25 +195,29 @@ void client::find_instructor() {
 }
 
 void client::process_subjects(){
-#if 0
+
 	std::thread worker([this](const std::unordered_map<std::string, course_info>& dat) {
 		for (const auto& [k, v] : dat) {
 			_subject_codes[v._subj_code]++;
-		}}, _data);
-	std::thread worker2([this](const std::unordered_map<std::string, course_info>& dat) {
-		for (const auto& [k, v] : dat) {
 			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
-		}}, _data);
+	}}, _data);
+	
+	std::thread worker2([this](std::unordered_map<std::string, std::set<std::string>>&& dat) {
+		for (const auto& i : dat) {
+			if (i.second.size() <= 1) {
+				
+				++_invalids;
+			}
+		}
+
+	}, _course_check);
+
 	worker.join();
-	worker2.join();
-#endif
-	for (const auto& [k, v] : _data) {
-		_subject_codes[v._subj_code]++;
-		_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
-	}
+	worker2.detach();
 }
 
-void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data) { //Refine this function later on
+void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data, 
+	std::unordered_map<std::string, std::set<std::string>>& invalids) { //Refine this function later on
 	char* token;
 	char buff[1000];
 	const char* const tab{ "," };
@@ -228,26 +238,31 @@ void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>
 
 		course_info temp{ term, section, course, instructor, when_where, subj_code };
 		data[term + ' ' + section] = temp;
+		invalids[term + ' ' + section].insert(course); //add to our map
 	}
 }
 
 int main() {
 
-	std::ifstream in_file("dvc-schedule.csv");
+	std::ifstream in_file(FILE_NAME);
 	if (!in_file.is_open()) {
 		throw std::runtime_error("Cannot open.");
 	}
 
 	std::unordered_map<std::string, course_info> course_data;
-	//[k] = term/section
-	//[v] = course information
+	/*[k] = term/section
+	  [v] = course information*/
+
+	std::unordered_map<std::string, std::set<std::string>> invalid_course;
+	/*[k] = term/section
+	  [v] = course*/
 
 	std::cout << "This is a course management system...\nPress [ENTER] to continue:"; //introduction while parsing data
-	std::thread parse(parser,std::ref(in_file),std::ref(course_data)); 
+	std::thread parse(parser,std::ref(in_file),std::ref(course_data), std::ref(invalid_course)); 
 	std::cin.get();
 	parse.join();
 
-	client local_client(course_data); //pass unordered_map by const ref
+	client local_client(course_data,invalid_course); //pass unordered_map by const ref
 	while (!local_client.complete()) {
 		local_client.show_menu();
 	}
