@@ -72,6 +72,7 @@ private:
 	void display_instructors();
 	void find_instructor();
 	void display_invalid();
+	void display_sections(); //display all classes for each
 	void process_subjects();
 
 	int _total_courses{ 0 };
@@ -83,6 +84,7 @@ private:
 	std::unordered_map<std::string, std::set<std::string>> _instructors;
 	std::unordered_map<std::string, std::set<std::string>> _course_check;
 	std::map<std::string, int> _subject_codes; //keep this sorted
+	std::map<std::string, std::set<std::string>> _sections; //[k] subj code | [v] course
 };
 
 void client::show_menu() {
@@ -92,7 +94,8 @@ void client::show_menu() {
 		<< "3. Display totals.\n"
 		<< "4. Find an instructor\n"
 		<< "5. Display all instructors.\n"
-		<< "6. Display invalid courses.";
+		<< "6. Display invalid courses.\n"
+		<< "7. Display sections for each subject.\n";
 	std::cout << '\n' << std::string(S, '=')
 		<< "\n[Q] to quit\n\tInput: ";
 	interact();
@@ -126,6 +129,9 @@ void client::interact() {
 	case 6:
 		display_invalid();
 		break;
+	case 7:
+		display_sections();
+		break;
 	default:
 		std::cout << "Error, try again!\n";
 		break;
@@ -133,7 +139,7 @@ void client::interact() {
 }
 
 void client::display_all() {
-	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << '\n' << std::string(50, '=') << '\n';
 	for (const auto& [k, v] : _data) { 
 		std::cout << k << '\n' << std::string(50, '-') << '\n' << v << '\n';
 	}
@@ -154,13 +160,13 @@ void client::display_each() {
 }
 
 void client::display_totals() {
-	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << '\n' << std::string(50, '=') << '\n';
 	std::cout << "Total valid courses: " << _data.size()
 		<< "\nTotal different subjects: " << _subject_codes.size() << '\n';
 }
 
 void client::display_instructors() {
-	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << '\n' << std::string(50, '=') << '\n';
 
 	for (const auto& [k,v] : _instructors) {
 		int counter{ 0 };
@@ -200,7 +206,7 @@ void client::find_instructor() {
 }
 
 void client::display_invalid(){
-	std::cout << "\n\n" << std::string(50, '=') << '\n';
+	std::cout << '\n' << std::string(50, '=') << '\n';
 
 	int counts{ 1 };
 	for (const auto& i : _course_check) {
@@ -217,6 +223,17 @@ void client::display_invalid(){
 	std::cout << "There are a total of " << _course_check.size() << " invalid term section pairs.\n\n";
 }
 
+void client::display_sections() {
+	std::cout << '\n' << std::string(50, '=') << '\n';
+	for (const auto& i : _sections) {
+		std::cout << i.first << ", " << i.second.size() << " course(s)\n" << std::string(30, '=') << '\n';
+		for (const auto& j : i.second) {
+			std::cout << std::left << std::setw(15) << j << "-> " << j.size() << std::right << " section(s)\n";
+		}
+		std::cout << std::string(30, '-') << "\n\n";
+	}
+}
+
 void client::process_subjects(){
 
 	/* This thread handles the main map of courses
@@ -226,11 +243,13 @@ void client::process_subjects(){
 		for (const auto& [k, v] : dat) {
 			_subject_codes[v._subj_code]++;
 			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
-	}}, _data);
+			_sections[v._subj_code].insert(v._course);
+		}
+	}, _data);
 	
-	/*This thread handles the secondary map (of sets) for invalid courses.
-	 *This process will copy the sets with nonduplicates with size greater than 1 
-	 *[Note: Set already deduplicates]*/
+	/* This thread filters the secondary map (of sets) for invalid courses.
+	 * This process will copy the sets with nonduplicates with size greater than 1 
+	 * [Note: Set already deduplicates]*/
 	std::thread worker2([this](std::unordered_map<std::string, std::set<std::string>>&& dat) {
 		std::unordered_map<std::string, std::set<std::string>> temp;
 		for (const auto& i : dat) {
