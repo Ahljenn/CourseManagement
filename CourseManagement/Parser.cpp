@@ -32,7 +32,7 @@
 #include <string>
 #include <cstring>
 
-std::string FILE_NAME{ "dvc-schedule.csv" };
+const std::string FILE_NAME{ "dvc-schedule.csv" };
 
 struct course_info {
 
@@ -70,9 +70,9 @@ private:
 	void display_totals();
 	void display_instructors();
 	void find_instructor();
+	void display_invalid();
 	void process_subjects();
 
-	int _invalids{ 0 };
 	int _total_courses{ 0 };
 	bool _state{ false }; 
 	const uint16_t W{ 10U }; 
@@ -90,7 +90,8 @@ void client::show_menu() {
 		<< "2. Display each courses and number of sections.\n"
 		<< "3. Display totals.\n"
 		<< "4. Find an instructor\n"
-		<< "5. Display all instructors.";
+		<< "5. Display all instructors.\n"
+		<< "6. Display invalid courses.";
 	std::cout << '\n' << std::string(S, '=')
 		<< "\n[Q] to quit\n\tInput: ";
 	interact();
@@ -121,6 +122,9 @@ void client::interact() {
 	case 5:
 		display_instructors();
 		break;
+	case 6:
+		display_invalid();
+		break;
 	default:
 		std::cout << "Error, try again!\n";
 		break;
@@ -137,6 +141,7 @@ void client::display_all() {
 void client::display_each() {
 	using namespace std::literals::chrono_literals;
 
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
 	std::cout << std::left << std::setw(W) << "\nSUBJ-CODE & COUNT(s)\n";
 	std::cout  << std::string(32, '=') << '\n';
 
@@ -148,23 +153,22 @@ void client::display_each() {
 }
 
 void client::display_totals() {
-	std::cout << '\n' << std::string(50, '=') << '\n';
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
 	std::cout << "Total valid courses: " << _data.size()
 		<< "\nTotal different subjects: " << _subject_codes.size() << '\n';
 }
 
 void client::display_instructors() {
-
-	std::cout << "\n\n" << std::string(50, '=');
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
 
 	for (const auto& [k,v] : _instructors) {
 		int counter{ 0 };
-		std::cout << "\nProfessor: " << k << '\n' << std::string(30, '-') << '\n';
+		std::cout <<"\nProfessor: " << k << '\n' << std::string(30, '=') << '\n';
 		for (const auto& course_itr : v) {
 			std::cout << course_itr << '\n';
 			++counter;
 		}
-		std::cout << "Total classes taught: " << counter << '\n';
+		std::cout << std::string(30, '-') << "\nTotal classes taught: " << counter << '\n';
 	}
 }
 
@@ -194,6 +198,24 @@ void client::find_instructor() {
 	}
 }
 
+void client::display_invalid(){
+	std::cout << "\n\n" << std::string(50, '=') << '\n';
+
+	int counts{ 1 };
+	for (const auto& i : _course_check) {
+		if (i.second.size() > 1) {
+			std::cout << "Invalid Term/Section:\n" << std::string(20, '-') << '\n';
+			std::cout << counts << ". " << i.first << '\n' << std::string(20, '=') << '\n';
+			for (const auto& j : i.second) {
+				std::cout << "Course: " << j << '\n';
+			}
+			std::cout << "\n\n";
+			++counts;
+		}
+	}
+	std::cout << "There are a total of " << _course_check.size() << " invalid term section pairs.\n\n";
+}
+
 void client::process_subjects(){
 
 	std::thread worker([this](const std::unordered_map<std::string, course_info>& dat) {
@@ -203,17 +225,20 @@ void client::process_subjects(){
 	}}, _data);
 	
 	std::thread worker2([this](std::unordered_map<std::string, std::set<std::string>>&& dat) {
+		std::unordered_map<std::string, std::set<std::string>> temp;
 		for (const auto& i : dat) {
-			if (i.second.size() <= 1) {
-				
-				++_invalids;
+			if (i.second.size() > 1) {
+				for (const auto& j : i.second) {
+					temp[i.first].insert(j);
+				}
 			}
 		}
-
+		_course_check.clear();
+		_course_check = std::move(temp);
 	}, _course_check);
 
-	worker.join();
-	worker2.detach();
+	worker.join(); //SUBJ, Instructor parse
+	worker2.detach(); //Invalid course parse
 }
 
 void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data, 
