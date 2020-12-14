@@ -2,7 +2,7 @@
 *ISO C++17 Standard (/std:c++17)*/
 
 /* [ADD]:
-* =====================================
+*  =====================================
 *  Display Fall,Spring, or Summer courses only
 *  # Of courses per subject code
 *  # Of courses per particular professor
@@ -19,6 +19,7 @@
 * 
 *  Be able to search professor by name, similar to final project using .find()
 */
+
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <iomanip>
@@ -218,12 +219,18 @@ void client::display_invalid(){
 
 void client::process_subjects(){
 
+	/* This thread handles the main map of courses
+	 * Process counts for each subject code
+	 * Process courses for each instructor, adding: course, section, term.*/
 	std::thread worker([this](const std::unordered_map<std::string, course_info>& dat) {
 		for (const auto& [k, v] : dat) {
 			_subject_codes[v._subj_code]++;
 			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
 	}}, _data);
 	
+	/*This thread handles the secondary map (of sets) for invalid courses.
+	 *This process will copy the sets with nonduplicates with size greater than 1 
+	 *[Note: Set already deduplicates]*/
 	std::thread worker2([this](std::unordered_map<std::string, std::set<std::string>>&& dat) {
 		std::unordered_map<std::string, std::set<std::string>> temp;
 		for (const auto& i : dat) {
@@ -235,23 +242,31 @@ void client::process_subjects(){
 		}
 		_course_check.clear();
 		_course_check = std::move(temp);
-	}, _course_check);
+	},  _course_check);
 
-	worker.join(); //SUBJ, Instructor parse
-	worker2.detach(); //Invalid course parse
+	worker.join(); 
+	worker2.join(); 
 }
 
 void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data, 
-	std::unordered_map<std::string, std::set<std::string>>& invalids) { //Refine this function later on
+	std::unordered_map<std::string, std::set<std::string>>& invalids) { 
+
+	/*Term and section must be unique
+	 *Copies information into a map of courses (Key: Term & Section)
+	 *Copies information into a map of sets    (Key: Term & Section)*/
+
 	char* token;
 	char buff[1000];
 	const char* const tab{ "," };
+	int lines{ 0 };
 
+	std::cout << "\nParsing database: [";
 	while (in_file.good()) {
 
 		std::string line;
 		std::getline(in_file, line);
 		std::strcpy(buff, line.c_str());
+		
 		if (buff[0] == 0) continue; //skip blanks
 		const std::string term{ token = strtok(buff,tab) };
 		const std::string section{ (token = strtok(0,tab)) ? token : "" };
@@ -260,11 +275,19 @@ void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>
 		const std::string when_where{ (token = strtok(0, tab)) ? token : "" };
 		if (course.find('-') == std::string::npos) continue; //not found. no dash in course name
 		const std::string subj_code{ course.begin(), course.begin() + course.find('-') };
+		++lines;
 
 		course_info temp{ term, section, course, instructor, when_where, subj_code };
+
 		data[term + ' ' + section] = temp;
 		invalids[term + ' ' + section].insert(course); //add to our map
+
+		if (lines % 5000 == 1) {
+			std::cout << '.';
+			std::cout.flush();
+		}
 	}
+	std::cout << "]\nProcess complete.\nPress [ENTER] to continue: \n";
 }
 
 int main() {
@@ -275,19 +298,20 @@ int main() {
 	}
 
 	std::unordered_map<std::string, course_info> course_data;
-	/*[k] = term/section
+	/*[k] = term & section
 	  [v] = course information*/
 
 	std::unordered_map<std::string, std::set<std::string>> invalid_course;
-	/*[k] = term/section
+	/*[k] = term & section
 	  [v] = course*/
 
-	std::cout << "This is a course management system...\nPress [ENTER] to continue:"; //introduction while parsing data
+	std::cout << "This is a course management system...\n"; //introduction while parsing data
 	std::thread parse(parser,std::ref(in_file),std::ref(course_data), std::ref(invalid_course)); 
 	std::cin.get();
 	parse.join();
 
-	client local_client(course_data,invalid_course); //pass unordered_map by const ref
+	client local_client(course_data,invalid_course);
+
 	while (!local_client.complete()) {
 		local_client.show_menu();
 	}
