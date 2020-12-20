@@ -144,7 +144,7 @@
     <None Include="dvc-schedule.csv" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="Manager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -3,21 +3,10 @@
 
 /* [ADD]:
 *  =====================================
-*  Display Fall,Spring, or Summer courses only
-*  # Of courses per subject code
-*  # Of courses per particular professor
-*  # Total "bad" courses (Assignment 14)
-*  # Total courses (117)
-*  # Total duplication
+*  Display Fall ,Spring, or Summer courses only
 *  # Total courses in given semester
 *  # Output all course in given semester
-*  # Output amount of different term/sections an instructor has taught
-*  # Output amount of different courses an instructor teaches
-*
-*  Multithreading possibility
 *  Exception class handling
-* 
-*  Be able to search professor by name, similar to final project using .find()
 */
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -102,6 +91,7 @@ void client::show_menu() {
 }
 
 void client::interact() {
+
 	std::string input;
 	std::getline(std::cin, input);
 
@@ -139,13 +129,16 @@ void client::interact() {
 }
 
 void client::display_all() {
+
 	std::cout << '\n' << std::string(50, '=') << '\n';
+
 	for (const auto& [k, v] : _data) { 
 		std::cout << k << '\n' << std::string(50, '-') << '\n' << v << '\n';
 	}
 }
 
 void client::display_each() {
+
 	using namespace std::literals::chrono_literals;
 
 	std::cout << "\n\n" << std::string(50, '=') << '\n';
@@ -166,11 +159,14 @@ void client::display_totals() {
 }
 
 void client::display_instructors() {
+
 	std::cout << '\n' << std::string(50, '=') << '\n';
 
 	for (const auto& [k,v] : _instructors) {
 		int counter{ 0 };
+
 		std::cout <<"\nProfessor: " << k << '\n' << std::string(30, '=') << '\n';
+
 		for (const auto& course_itr : v) {
 			std::cout << course_itr << '\n';
 			++counter;
@@ -180,6 +176,7 @@ void client::display_instructors() {
 }
 
 void client::find_instructor() {
+
 	std::string input;
 
 	while (input.length() == 0) {
@@ -195,9 +192,11 @@ void client::find_instructor() {
 
 	if (_instructors.find(input) != _instructors.cend()) {
 		std::cout << "\nCourses found for " << input << "(s):\n" << std::string(30, '-') << '\n';
+
 		for (const auto i : _instructors[input]) {
 			std::cout << i << '\n';
 		}
+
 		std::cout << "\nImportant note: results may be outputting additional results due to some instructors with the same name.\n";
 	}
 	else {
@@ -206,16 +205,21 @@ void client::find_instructor() {
 }
 
 void client::display_invalid(){
+
 	std::cout << '\n' << std::string(50, '=') << '\n';
 
 	int counts{ 1 };
+
 	for (const auto& i : _course_check) {
+
 		if (i.second.size() > 1) {
 			std::cout << "Invalid Term/Section:\n" << std::string(20, '-') << '\n';
 			std::cout << counts << ". " << i.first << '\n' << std::string(20, '=') << '\n';
+
 			for (const auto& j : i.second) {
 				std::cout << "Course: " << j << '\n';
 			}
+
 			std::cout << "\n\n";
 			++counts;
 		}
@@ -224,18 +228,22 @@ void client::display_invalid(){
 }
 
 void client::display_sections() {
+
 	std::cout << '\n' << std::string(50, '=') << '\n';
+
 	for (const auto& i : _sections) {
+
 		std::cout << i.first << ", " << i.second.size() << " course(s)\n" << std::string(30, '=') << '\n';
+
 		for (const auto& j : i.second) {
 			std::cout << std::left << std::setw(15) << j << "-> " << j.size() << std::right << " section(s)\n";
 		}
+
 		std::cout << std::string(30, '-') << "\n\n";
 	}
 }
 
 void client::process_subjects(){
-
 	/* This thread handles the main map of courses
 	 * Process counts for each subject code
 	 * Process courses for each instructor, adding: course, section, term.*/
@@ -301,7 +309,7 @@ void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>
 		data[term + ' ' + section] = temp;
 		invalids[term + ' ' + section].insert(course); //add to our map
 
-		if (lines % 5000 == 1) {
+		if (lines % 9500 == 1) {
 			std::cout << '.';
 			std::cout.flush();
 		}
