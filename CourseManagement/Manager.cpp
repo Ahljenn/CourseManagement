@@ -249,7 +249,7 @@ void client::process_subjects(){
 	/* This thread handles the main map of courses
 	 * Process counts for each subject code
 	 * Process courses for each instructor, adding: course, section, term.*/
-	std::thread worker([this](const std::unordered_map<std::string, course_info>& dat) {
+	std::thread worker([this](const hash_coursing& dat) {
 		for (const auto& [k, v] : dat) {
 			_subject_codes[v._subj_code]++;
 			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
@@ -260,8 +260,8 @@ void client::process_subjects(){
 	/* This thread filters the secondary map (of sets) for invalid courses.
 	 * This process will copy the sets with nonduplicates with size greater than 1 
 	 * [Note: Set already deduplicates]*/
-	std::thread worker2([this](std::unordered_map<std::string, std::set<std::string>>&& dat) {
-		std::unordered_map<std::string, std::set<std::string>> temp;
+	std::thread worker2([this](hash_set&& dat) {
+		hash_set temp;
 		for (const auto& i : dat) {
 			if (i.second.size() > 1) {
 				for (const auto& j : i.second) {
@@ -277,8 +277,7 @@ void client::process_subjects(){
 	worker2.join(); 
 }
 
-void parser(std::ifstream& in_file, std::unordered_map<std::string, course_info>& data, 
-	std::unordered_map<std::string, std::set<std::string>>& invalids) { 
+void parser(std::ifstream& in_file, hash_coursing& data, hash_set& invalids) { 
 
 	/*Term and section must be unique
 	 *Copies information into a map of courses (Key: Term & Section)
@@ -326,11 +325,11 @@ int main() {
 		throw std::runtime_error("Cannot open.");
 	}
 
-	std::unordered_map<std::string, course_info> course_data;
+	hash_coursing course_data;
 	/*[k] = term & section
 	  [v] = course information*/
 
-	std::unordered_map<std::string, std::set<std::string>> invalid_course;
+	hash_set invalid_course;
 	/*[k] = term & section
 	  [v] = course*/
 
