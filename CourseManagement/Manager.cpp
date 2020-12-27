@@ -42,10 +42,12 @@ std::ostream& operator<<(std::ostream& os, course_info const& rhs) {
 	return os;
 }
 
+using hash_coursing = std::unordered_map<std::string, course_info>;
+using hash_set = std::unordered_map<std::string, std::set<std::string>>;
+
 class client {
 public:
-	client(std::unordered_map<std::string, course_info>& data, 
-		std::unordered_map<std::string, std::set<std::string>>& invalid) {
+	client(hash_coursing& data, hash_set& invalid) {
 		_data = std::move(data); //move resources to this client
 		_course_check = std::move(invalid);
 		process_subjects();
@@ -69,9 +71,9 @@ private:
 	const uint16_t W{ 10U }; 
 	const std::size_t S{ 50U };
 
-	std::unordered_map<std::string, course_info> _data;
-	std::unordered_map<std::string, std::set<std::string>> _instructors;
-	std::unordered_map<std::string, std::set<std::string>> _course_check;
+	hash_coursing _data;
+	hash_set _instructors;
+	hash_set _course_check;
 	std::map<std::string, int> _subject_codes; //keep this sorted
 	std::map<std::string, std::set<std::string>> _sections; //[k] subj code | [v] course
 };
