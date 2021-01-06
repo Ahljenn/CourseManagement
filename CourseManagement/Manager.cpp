@@ -1,13 +1,8 @@
 /* Ahljenn Mallari
-*ISO C++17 Standard (/std:c++17)*/
+*ISO C++17 Standard (/std:c++17)
+* 
+Search terms/years given a subject code like PHYS-230 -> all term/year*/
 
-/* [ADD]:
-*  =====================================
-*  Display Fall ,Spring, or Summer courses only
-*  # Total courses in given semester
-*  # Output all course in given semester
-*  Exception class handling
-*/
 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
@@ -64,6 +59,8 @@ private:
 	void find_instructor();
 	void display_invalid();
 	void display_sections(); //display all classes for each
+	void display_course_term();
+	void find_course_term();
 	void process_subjects();
 
 	int _total_courses{ 0 };
@@ -74,6 +71,7 @@ private:
 	hash_coursing _data;
 	hash_set _instructors;
 	hash_set _course_check;
+	hash_set _course_term;
 	std::map<std::string, int> _subject_codes; //keep this sorted
 	std::map<std::string, std::set<std::string>> _sections; //[k] subj code | [v] course
 };
@@ -86,7 +84,9 @@ void client::show_menu() {
 		<< "4. Find an instructor\n"
 		<< "5. Display all instructors.\n"
 		<< "6. Display invalid courses.\n"
-		<< "7. Display sections for each subject.\n";
+		<< "7. Display sections for each subject.\n"
+		<< "8. Display each term for a section.\n"
+		<< "9. Find each term and section for a course.\n";
 	std::cout << '\n' << std::string(S, '=')
 		<< "\n[Q] to quit\n\tInput: ";
 	interact();
@@ -124,6 +124,11 @@ void client::interact() {
 	case 7:
 		display_sections();
 		break;
+	case 8:
+		display_course_term();
+		break;
+	case 9:
+		find_course_term();
 	default:
 		std::cout << "Error, try again!\n";
 		break;
@@ -245,6 +250,26 @@ void client::display_sections() {
 	}
 }
 
+void client::display_course_term() {
+
+	std::cout << '\n' << std::string(50, '=') << '\n';
+
+	for (const auto& i : _course_term) {
+
+		std::cout << i.first << ", " << i.second.size() << " terms/year\n" << std::string(30, '=') << '\n';
+
+		for (const auto& j : i.second) {
+			std::cout << j << '\n';
+		}
+
+		std::cout << std::string(30, '-') << "\n\n";
+	}
+}
+
+void client::find_course_term() {
+
+}
+
 void client::process_subjects(){
 	/* This thread handles the main map of courses
 	 * Process counts for each subject code
@@ -254,6 +279,7 @@ void client::process_subjects(){
 			_subject_codes[v._subj_code]++;
 			_instructors[v._instructor].insert(v._course + '-' + v._section + ": " + v._term);
 			_sections[v._subj_code].insert(v._course);
+			_course_term[v._course].insert(v._term);
 		}
 	}, _data);
 	
