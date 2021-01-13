@@ -129,6 +129,7 @@ void client::interact() {
 		break;
 	case 9:
 		find_course_term();
+		break;
 	default:
 		std::cout << "Error, try again!\n";
 		break;
@@ -267,6 +268,29 @@ void client::display_course_term() {
 }
 
 void client::find_course_term() {
+
+	std::string input;
+
+	while (input.length() == 0) {
+		std::cout << "Please search course to display all terms: ";
+		std::getline(std::cin, input);
+	}
+
+	//Format name
+	for (std::size_t i{ 0 }; i < input.length(); ++i) {
+		input[i] = toupper(input[i]);
+	}
+
+	if (_course_term.find(input) != _course_term.cend()) {
+		std::cout << "\nTerms found for " << input << "(s):\n" << std::string(30, '-') << '\n';
+
+		for (const auto i : _course_term[input]) { //Display all terms for given subject
+			std::cout << i << '\n';
+		}
+	}
+	else {
+		std::cout << "\nCourses could not be found for " << input << ".\n";
+	}
 
 }
 
